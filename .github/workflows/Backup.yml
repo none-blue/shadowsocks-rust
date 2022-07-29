@@ -1,0 +1,41 @@
+name: Backup
+on:
+  schedule:
+    - cron: "10 10 1-31/2 * *"
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check and release
+        run: |
+            rm -fr *
+            sudo apt update -yqq
+            sudo apt install -yqq build-essential upx git
+
+            rustup toolchain install nightly
+            rustup override set nightly
+            #cargo install cross
+            
+            git clone https://github.com/shadowsocks/shadowsocks-rust.git ss-rust > /dev/null
+            cd ss-rust
+            
+            cargo build -Z unstable-options -rq --out-dir ../
+            cd ../
+            rm -rf ss-rust
+            upx --best ss*
+
+            mkdir -p .github/workflows
+            wget -qO .github/workflows/Backup.yml https://github.com/${{ github.repository }}/raw/main/.github/workflows/Backup.yml &> /dev/null
+
+            git config --global init.defaultBranch main
+            git init
+            git add .
+            git config user.name "mainians"
+            git config user.email "61817665+mainians@users.noreply.github.com"
+            git commit -m "ss-rust amd64 binary"
+            git remote add origin "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}"
+            git push origin main --force
